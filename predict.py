@@ -54,6 +54,8 @@ def predict(image_path):
     logger.info("定义图像转换管道...")
     transform = transforms.Compose(
         [
+            transforms.Resize((28, 28)),
+            transforms.Grayscale(num_output_channels=1),
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,)),
         ]
