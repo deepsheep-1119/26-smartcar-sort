@@ -128,7 +128,57 @@ def detect_a4_by_red(image_path):
     )
     cv2.line(result, right_pt1, right_pt2, (0, 255, 0), 1)
 
-    return result
+    # --- 1. 整理红色区域已知的四个角点 (图像坐标) ---
+    # 我们用 tl, tr, br, bl (你代码里已经算好的)
+    src_pts = np.array([tl, tr, br, bl], dtype=np.float32)
+
+    # --- 2. 定义对应的物理坐标 (假设宽度为12cm，高度比例正确即可) ---
+    # 红色区域在物理上是从 12cm 到 17cm 的位置
+    w, h_img, h_red = 12.0, 12.0, 5.0
+    dst_pts = np.array(
+        [
+            [0, h_img],  # 对应 tl (红色左上)
+            [w, h_img],  # 对应 tr (红色右上)
+            [w, h_img + h_red],  # 对应 br (红色右下)
+            [0, h_img + h_red],  # 对应 bl (红色左下)
+        ],
+        dtype=np.float32,
+    )
+
+    # --- 3. 计算透视变换矩阵 M ---
+    # 这个 M 记录了“物理平面”到“相机图片”的投影关系
+    M = cv2.getPerspectiveTransform(dst_pts, src_pts)
+
+    # --- 4. 用矩阵 M 推算纸张最顶部的两个点 ---
+    # 纸张最顶部的物理坐标是 (0,0) 和 (12,0)
+    top_points_physical = np.array([[[0, 0], [w, 0]]], dtype=np.float32)
+
+    # 使用 cv2.perspectiveTransform 进行坐标变换
+    top_points_image = cv2.perspectiveTransform(top_points_physical, M)[0]
+
+    # --- 5. 绘图 ---
+    pt_top_left = tuple(top_points_image[0].astype(int))
+    pt_top_right = tuple(top_points_image[1].astype(int))
+
+    # 连接顶边
+
+    cv2.line(result, pt_top_left, pt_top_right, (0, 0, 255), 1)
+    cv2.circle(result, pt_top_left, 2, (0, 0, 255), -1)
+    cv2.circle(result, pt_top_right, 2, (0, 0, 255), -1)
+    # 连接侧边补全
+    cv2.line(result, tuple(tl.astype(int)), pt_top_left, (0, 255, 0), 1)
+    cv2.line(result, tuple(tr.astype(int)), pt_top_right, (0, 255, 0), 1)
+
+    src_quad = np.array([tl, tr, pt_top_right, pt_top_left], dtype=np.float32)
+    width = int(np.linalg.norm(tr - tl))
+    height = int(np.linalg.norm(pt_top_left - tl))
+    dst_quad = np.array(
+        [[0, 0], [width, 0], [width, height], [0, height]], dtype=np.float32
+    )
+    M_warp = cv2.getPerspectiveTransform(src_quad, dst_quad)
+    warped = cv2.warpPerspective(img, M_warp, (width, height))
+
+    return result, warped
 
 
 def main():
@@ -147,10 +197,13 @@ def main():
         category_out.mkdir(exist_ok=True)
 
         for img_path in category_path.glob("*.png"):
-            result = detect_a4_by_red(img_path)
-            if result is not None:
+            output_data = detect_a4_by_red(img_path)
+            if output_data is not None:
+                result, warped = output_data
                 output_path = category_out / img_path.name
                 cv2.imwrite(str(output_path), result)
+                warped_path = category_out/  f"warped_{img_path.name}"
+                cv2.imwrite(str(warped_path), cv2.rotate(warped, cv2.ROTATE_180))
 
 
 if __name__ == "__main__":
