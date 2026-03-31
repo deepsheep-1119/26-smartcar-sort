@@ -60,8 +60,8 @@ def detect_a4_by_red(image_path):
     # === 新的逻辑：寻找紧贴轮廓的四个数学极值点 ===
 
     # 计算 x + y 和 x - y
-    add = points.sum(axis=1)           # N个点的 x+y 结果
-    diff = np.diff(points, axis=1)     # N个点的 y-x 结果
+    add = points.sum(axis=1)  # N个点的 x+y 结果
+    diff = np.diff(points, axis=1)  # N个点的 y-x 结果
 
     # 1. 左上角 (Top-Left): x + y 最小
     tl = points[np.argmin(add)]
@@ -89,6 +89,44 @@ def detect_a4_by_red(image_path):
         px, py = point.ravel()
         # 画绿色 (0, 255, 0), 半径5, 实心 (-1) 的圆
         cv2.circle(result, (px, py), 1, (0, 255, 0), -1)
+
+    # 3. 连接左边的上下两个点 (tl 和 bl)，延长到图像边界之外
+    left_mid_x = (tl[0] + bl[0]) / 2
+    left_mid_y = (tl[1] + bl[1]) / 2
+    left_dir_x = tl[0] - bl[0]
+    left_dir_y = tl[1] - bl[1]
+    left_len = np.sqrt(left_dir_x**2 + left_dir_y**2)
+    left_dir_x /= left_len
+    left_dir_y /= left_len
+    left_extend = 500
+    left_pt1 = (
+        int(left_mid_x - left_dir_x * left_extend),
+        int(left_mid_y - left_dir_y * left_extend),
+    )
+    left_pt2 = (
+        int(left_mid_x + left_dir_x * left_extend),
+        int(left_mid_y + left_dir_y * left_extend),
+    )
+    cv2.line(result, left_pt1, left_pt2, (0, 255, 0), 1)
+
+    # 4. 连接右边的上下两个点 (tr 和 br)，延长到图像边界之外
+    right_mid_x = (tr[0] + br[0]) / 2
+    right_mid_y = (tr[1] + br[1]) / 2
+    right_dir_x = tr[0] - br[0]
+    right_dir_y = tr[1] - br[1]
+    right_len = np.sqrt(right_dir_x**2 + right_dir_y**2)
+    right_dir_x /= right_len
+    right_dir_y /= right_len
+    right_extend = 500
+    right_pt1 = (
+        int(right_mid_x - right_dir_x * right_extend),
+        int(right_mid_y - right_dir_y * right_extend),
+    )
+    right_pt2 = (
+        int(right_mid_x + right_dir_x * right_extend),
+        int(right_mid_y + right_dir_y * right_extend),
+    )
+    cv2.line(result, right_pt1, right_pt2, (0, 255, 0), 1)
 
     return result
 
