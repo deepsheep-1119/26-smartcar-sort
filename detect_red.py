@@ -52,37 +52,43 @@ def detect_a4_by_red(image_path):
 
     cv2.drawContours(result, [best_cnt], -1, (255, 0, 0), 2)
 
-    red_bottom_y = ry + rh
-    red_left_x = rx
-    red_right_x = rx + rw
+    hull = cv2.convexHull(best_cnt)
+    hull_points = hull[:, 0, :]
+
+    leftmost = hull_points[hull_points[:, 0].argmin()]
+    rightmost = hull_points[hull_points[:, 0].argmax()]
+
+    bottom_left = (int(leftmost[0]), int(leftmost[1]))
+    bottom_right = (int(rightmost[0]), int(rightmost[1]))
+
     red_center_x = rx + rw // 2
+    red_bottom_y = ry + rh
 
     scale_h = 4.2
     paper_h = int(rh * scale_h)
-
     top_y = red_bottom_y - paper_h
 
-    bottom_margin = int(rw * 0.05)
+    top_left_x = bottom_left[0]
+    top_right_x = bottom_right[0]
 
-    bottom_left = (red_left_x - bottom_margin, red_bottom_y)
-    bottom_right = (red_right_x + bottom_margin, red_bottom_y)
+    top_left_point = (top_left_x, int(top_y))
+    top_right_point = (top_right_x, int(top_y))
 
-    paper_width = int(paper_h * 210 / 297)
-    top_left_x = red_center_x - paper_width // 2
-    top_right_x = top_left_x + paper_width
+    cv2.line(result, top_left_point, bottom_left, (255, 0, 0), 2)
+    cv2.line(result, top_right_point, bottom_right, (255, 0, 0), 2)
 
-    top_left = (max(0, top_left_x), max(0, top_y))
-    top_right = (min(w, top_right_x), max(0, top_y))
+    cv2.line(result, top_left_point, top_right_point, (0, 255, 0), 3)
+    cv2.line(result, top_right_point, bottom_right, (0, 255, 0), 3)
+    cv2.line(result, bottom_right, bottom_left, (0, 255, 0), 3)
+    cv2.line(result, bottom_left, top_left_point, (0, 255, 0), 3)
 
-    if top_left[0] + int(paper_h * 210 / 297) > w:
-        top_right = (w, top_y)
-        top_left = (w - int(paper_h * 210 / 297), top_y)
-
-    pts = np.array([top_left, top_right, bottom_right, bottom_left], np.int32)
-    cv2.polylines(result, [pts], True, (0, 255, 0), 3)
+    cv2.circle(result, top_left_point, 5, (0, 255, 0), -1)
+    cv2.circle(result, top_right_point, 5, (0, 255, 0), -1)
+    cv2.circle(result, bottom_left, 5, (0, 255, 0), -1)
+    cv2.circle(result, bottom_right, 5, (0, 255, 0), -1)
 
     print(
-        f"{image_path.name}: Red({rx},{ry} {rw}x{rh}), Bottom({bottom_left},{bottom_right}), Top({top_left},{top_right})"
+        f"{image_path.name}: Top({top_left_point},{top_right_point}), Bottom({bottom_left},{bottom_right})"
     )
 
     return result
