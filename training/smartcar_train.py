@@ -16,6 +16,22 @@ from utils.transforms import get_smartcar_transform
 
 
 def get_dataLoaders(batch_size=16, img_size=96):
+    """
+    创建训练集和测试集的 DataLoader。
+
+    Args:
+        batch_size: 每个批次的样本数量，默认为 16
+        img_size: 图像尺寸，默认为 96
+
+    Returns:
+        tuple: (train_loader, test_loader, IDX_TO_CLASS)
+        - train_loader: 训练数据加载器，shuffle=True
+        - test_loader: 测试数据加载器，shuffle=False
+        - IDX_TO_CLASS: 类别索引到类别名的映射字典
+    """
+    # 分别为训练集和测试集创建不同的预处理流水线
+    # 训练集使用带随机增强的 transform（旋转、颜色抖动、水平翻转）
+    # 测试集使用确定性的 transform（无随机性，保证结果可重复）
     train_transform = get_smartcar_transform(img_size, train=True)
     test_transform = get_smartcar_transform(img_size, train=False)
 
