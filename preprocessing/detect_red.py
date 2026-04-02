@@ -10,7 +10,7 @@ A4纸红色区域检测与透视校正模块
 - 进行透视变换，输出校正后的图像
 
 使用方法：
-    from inference.detect_red import detect_a4_by_red
+    from preprocessing.detect_red import detect_a4_by_red
 
     # 基本用法
     result, warped = detect_a4_by_red("image.png")
