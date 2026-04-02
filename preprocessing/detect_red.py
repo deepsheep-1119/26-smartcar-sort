@@ -36,6 +36,22 @@ import cv2
 import numpy as np
 from pathlib import Path
 from typing import Optional, Tuple, List
+from dataclasses import dataclass, field
+
+
+@dataclass
+class A4DetectionResult:
+    """A4纸检测结果数据类"""
+
+    success: bool
+    tl: Optional[np.ndarray] = field(default=None)
+    tr: Optional[np.ndarray] = field(default=None)
+    br: Optional[np.ndarray] = field(default=None)
+    bl: Optional[np.ndarray] = field(default=None)
+    pt_top_left: Optional[Tuple[int, int]] = field(default=None)
+    pt_top_right: Optional[Tuple[int, int]] = field(default=None)
+    contour: Optional[np.ndarray] = field(default=None)
+    message: Optional[str] = field(default=None)
 
 
 def create_red_mask(
@@ -303,8 +319,8 @@ def draw_top_edge(
     result: np.ndarray,
     tl: np.ndarray,
     tr: np.ndarray,
-    pt_top_left: Tuple[int, int],
-    pt_top_right: Tuple[int, int],
+    pt_top_left: Optional[Tuple[int, int]],
+    pt_top_right: Optional[Tuple[int, int]],
     line_color: Tuple[int, int, int] = (0, 0, 255),
     corner_color: Tuple[int, int, int] = (0, 0, 255),
     thickness: int = 1,
@@ -340,8 +356,8 @@ def perspective_crop(
     img: np.ndarray,
     tl: np.ndarray,
     tr: np.ndarray,
-    pt_top_left: Tuple[int, int],
-    pt_top_right: Tuple[int, int],
+    pt_top_left: Optional[Tuple[int, int]],
+    pt_top_right: Optional[Tuple[int, int]],
 ) -> np.ndarray:
     """
     对图像进行透视变换，裁剪出校正后的A4纸区域。
@@ -366,6 +382,139 @@ def perspective_crop(
     return cv2.warpPerspective(img, M_warp, (width, height))
 
 
+def detect_a4_points(
+    img: np.ndarray,
+    red_hsv_ranges: Optional[
+        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+    ] = None,
+    morphology_kernel_size: int = 3,
+    center_ratio: float = 0.5,
+    min_area: float = 1000,
+    min_width: int = 40,
+    min_height: int = 20,
+    phys_width: float = 12.0,
+    phys_img_height: float = 12.0,
+    phys_red_height: float = 5.0,
+) -> A4DetectionResult:
+    """
+    检测图像中的A4纸红色标记区域，找出关键角点。
+
+    找点流程:
+        1. 将图像转换为HSV颜色空间
+        2. 创建红色区域掩码
+        3. 形态学操作去除噪声
+        4. 查找并筛选中心区域的红色轮廓
+        5. 找出红色区域的四个角点
+        6. 根据物理尺寸计算A4纸顶部边缘
+
+    参数:
+        img: 输入图像 (BGR格式)
+        red_hsv_ranges: 红色HSV颜色范围，默认为标准红色范围
+        morphology_kernel_size: 形态学操作核大小，默认3x3
+        center_ratio: 中心区域占图像宽度的比例，默认0.5
+        min_area: 红色轮廓最小面积，默认1000
+        min_width: 红色轮廓最小宽度，默认40
+        min_height: 红色轮廓最小高度，默认20
+        phys_width: A4纸物理宽度(cm)，默认12.0cm
+        phys_img_height: 图像区域物理高度，默认12.0cm
+        phys_red_height: 红色标记条物理高度，默认5.0cm
+
+    返回:
+        A4DetectionResult: 包含检测结果的数据类
+    """
+    h, w = img.shape[:2]
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    if red_hsv_ranges is None:
+        lower_red1 = np.array([0, 100, 100])
+        upper_red1 = np.array([15, 255, 255])
+        lower_red2 = np.array([150, 100, 100])
+        upper_red2 = np.array([180, 255, 255])
+    else:
+        lower_red1, upper_red1, lower_red2, upper_red2 = red_hsv_ranges
+
+    mask = create_red_mask(hsv, lower_red1, upper_red1, lower_red2, upper_red2)
+    mask = apply_morphology(mask, morphology_kernel_size)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        return A4DetectionResult(success=False, message="No red region found")
+
+    center_contours = filter_center_contours(
+        contours, w, center_ratio, min_area, min_width, min_height
+    )
+
+    if not center_contours:
+        return A4DetectionResult(success=False, message="No center red region found")
+
+    best_cnt = center_contours[0][0]
+    points = best_cnt.reshape(-1, 2)
+    tl, tr, br, bl = find_corner_points(points)
+
+    src_pts = np.array([tl, tr, br, bl], dtype=np.float32)
+    pt_top_left, pt_top_right = compute_top_edge_points(
+        src_pts, phys_width, phys_img_height, phys_red_height
+    )
+
+    return A4DetectionResult(
+        success=True,
+        tl=tl,
+        tr=tr,
+        br=br,
+        bl=bl,
+        pt_top_left=pt_top_left,
+        pt_top_right=pt_top_right,
+        contour=best_cnt,
+    )
+
+
+def visualize_detection(
+    img: np.ndarray,
+    detection: A4DetectionResult,
+    extend_length: float = 500.0,
+) -> np.ndarray:
+    """
+    根据检测结果在图像上绘制可视化信息。
+
+    绘制内容:
+        1. 红色区域轮廓
+        2. 四个角点(圆点)
+        3. 左右延长线
+        4. 顶部边缘线及其角点
+        5. 连接线(绿色)
+
+    参数:
+        img: 原始输入图像
+        detection: A4DetectionResult检测结果
+        extend_length: 延长线延伸长度，默认500像素
+
+    返回:
+        绘制了检测信息的图像副本
+    """
+    if not detection.success:
+        return img.copy()
+
+    result = img.copy()
+    draw_contour(result, detection.contour)
+    draw_corner_points(result, [detection.tl, detection.tr, detection.br, detection.bl])
+    draw_extended_lines(
+        result,
+        detection.tl,
+        detection.bl,
+        detection.tr,
+        detection.br,
+        extend_length,
+    )
+    draw_top_edge(
+        result,
+        detection.tl,
+        detection.tr,
+        detection.pt_top_left,
+        detection.pt_top_right,
+    )
+    return result
+
+
 def detect_a4_by_red(
     image_path: str,
     red_hsv_ranges: Optional[
@@ -386,53 +535,24 @@ def detect_a4_by_red(
     检测图像中的A4纸红色标记区域并进行透视校正。
 
     处理流程:
-        1. 将图像转换为HSV颜色空间
-        2. 创建红色区域掩码
-        3. 形态学操作去除噪声
-        4. 查找并筛选中心区域的红色轮廓
-        5. 找出红色区域的四个角点
-        6. 根据物理尺寸计算A4纸顶部边缘
-        7. 进行透视变换，裁剪校正后的图像
+        1. 加载图像
+        2. 调用detect_a4_points找点
+        3. 调用visualize_detection画点线(可选)
+        4. 进行透视变换，裁剪校正后的图像
 
     参数:
-        image_path: 输入图像路径，支持字符串或Path对象
-
-        red_hsv_ranges: 红色HSV颜色范围元组
-            - lower_red1: 红色范围1的下限 [H, S, V]
-            - upper_red1: 红色范围1的上限 [H, S, V]
-            - lower_red2: 红色范围2的下限 [H, S, V]
-            - upper_red2: 红色范围2的上限 [H, S, V]
-            默认值None使用标准红色范围:
-            ([0, 100, 100], [15, 255, 255], [150, 100, 100], [180, 255, 255])
-
-        morphology_kernel_size: 形态学操作核大小，默认3x3
-            - 值越大，噪声去除效果越好，但可能丢失细节
-
-        center_ratio: 中心区域占图像宽度的比例，默认0.5
-            - 0.5表示只接受位于图像中心50%区域的红色标记
-            - 值越小，筛选越严格
-
-        min_area: 红色轮廓最小面积(像素²)，默认1000
-            - 用于过滤误检测的小轮廓
-
-        min_width: 红色轮廓最小宽度(像素)，默认40
-
-        min_height: 红色轮廓最小高度(像素)，默认20
-
-        phys_width: A4纸物理宽度(cm)，默认12.0cm
-            - 用于透视变换的物理坐标计算
-
-        phys_img_height: 图像区域相对于红色标记的物理高度(cm)，默认12.0cm
-            - 即红色标记上边缘距离A4纸顶边的距离
-
-        phys_red_height: 红色标记条物理高度(cm)，默认5.0cm
-
-        extend_length: 延长线延伸长度(像素)，默认500
-            - 用于绘制辅助线，帮助可视化检测结果
-
-        draw_result: 是否在结果图像上绘制检测信息，默认True
-            - True: 返回标注了角点和延长线的原图 + 透视校正图
-            - False: 返回(None, 透视校正图)
+        image_path: 输入图像路径
+        red_hsv_ranges: 红色HSV颜色范围
+        morphology_kernel_size: 形态学操作核大小
+        center_ratio: 中心区域占图像宽度的比例
+        min_area: 红色轮廓最小面积
+        min_width: 红色轮廓最小宽度
+        min_height: 红色轮廓最小高度
+        phys_width: A4纸物理宽度(cm)
+        phys_img_height: 图像区域物理高度(cm)
+        phys_red_height: 红色标记条物理高度(cm)
+        extend_length: 延长线延伸长度(像素)
+        draw_result: 是否绘制检测信息
 
     返回:
         如果成功检测:
@@ -446,52 +566,35 @@ def detect_a4_by_red(
         print(f"Failed to load {image_path}")
         return None
 
-    h, w = img.shape[:2]
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
-    if red_hsv_ranges is None:
-        lower_red1 = np.array([0, 100, 100])
-        upper_red1 = np.array([15, 255, 255])
-        lower_red2 = np.array([150, 100, 100])
-        upper_red2 = np.array([180, 255, 255])
-    else:
-        lower_red1, upper_red1, lower_red2, upper_red2 = red_hsv_ranges
-
-    mask = create_red_mask(hsv, lower_red1, upper_red1, lower_red2, upper_red2)
-    mask = apply_morphology(mask, morphology_kernel_size)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    if not contours:
-        print(f"{Path(image_path).name}: No red region found")
-        return img if draw_result else None
-
-    center_contours = filter_center_contours(
-        contours, w, center_ratio, min_area, min_width, min_height
+    detection = detect_a4_points(
+        img,
+        red_hsv_ranges=red_hsv_ranges,
+        morphology_kernel_size=morphology_kernel_size,
+        center_ratio=center_ratio,
+        min_area=min_area,
+        min_width=min_width,
+        min_height=min_height,
+        phys_width=phys_width,
+        phys_img_height=phys_img_height,
+        phys_red_height=phys_red_height,
     )
 
-    if not center_contours:
-        print(f"{Path(image_path).name}: No center red region found")
+    if not detection.success:
+        print(f"{Path(image_path).name}: {detection.message}")
         return img if draw_result else None
 
-    best_cnt = center_contours[0][0]
-    points = best_cnt.reshape(-1, 2)
-    tl, tr, br, bl = find_corner_points(points)
-
     if draw_result:
-        result = img.copy()
-        draw_contour(result, best_cnt)
-        draw_corner_points(result, [tl, tr, br, bl])
-        draw_extended_lines(result, tl, bl, tr, br, extend_length)
-
-        src_pts = np.array([tl, tr, br, bl], dtype=np.float32)
-        pt_top_left, pt_top_right = compute_top_edge_points(
-            src_pts, phys_width, phys_img_height, phys_red_height
-        )
-        draw_top_edge(result, tl, tr, pt_top_left, pt_top_right)
+        result = visualize_detection(img, detection, extend_length)
     else:
         result = None
 
-    warped = perspective_crop(img, tl, tr, pt_top_left, pt_top_right)
+    warped = perspective_crop(
+        img,
+        detection.tl,
+        detection.tr,
+        detection.pt_top_left,
+        detection.pt_top_right,
+    )
 
     return result, warped
 
@@ -513,7 +616,7 @@ def main(
     out_path = Path(output_dir)
     out_path.mkdir(exist_ok=True)
 
-    for category in categories:
+    for category in categories or []:
         category_path = input_path / category
         if not category_path.exists():
             continue
@@ -522,7 +625,7 @@ def main(
         category_out.mkdir(exist_ok=True)
 
         for img_path in category_path.glob("*.png"):
-            output_data = detect_a4_by_red(img_path)
+            output_data = detect_a4_by_red(str(img_path))
             if output_data is not None:
                 result, warped = output_data
                 output_path = category_out / img_path.name
