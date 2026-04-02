@@ -64,7 +64,7 @@ def main():
             is_correct = pred == true_label
             correct += is_correct
             total += 1
-            status = "✓" if is_correct else "✗"
+            status = "✅" if is_correct else "❌"
             print(f"{status} {img_path.name}: predicted={pred}, actual={true_label}")
 
             print("-" * 40)
