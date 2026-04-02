@@ -15,12 +15,12 @@ from utils.device import get_device
 from utils.transforms import get_smartcar_transform
 
 
-def get_dataLoaders(batch_size=16, img_size=96):
+def get_dataLoaders(batch_size=32, img_size=96):
     """
     创建训练集和测试集的 DataLoader。
 
     Args:
-        batch_size: 每个批次的样本数量，默认为 16
+        batch_size: 每个批次的样本数量，默认为 32
         img_size: 图像尺寸，默认为 96
 
     Returns:
@@ -54,7 +54,7 @@ def train(epochs=20):
     device = get_device()
     model = SmartCarCNN(num_classes=len(SMARTCAR_CLASSES)).to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
     print(f"Using device: {device}")
     print(f"Classes: {idx_to_class}")

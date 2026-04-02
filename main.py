@@ -67,7 +67,7 @@ def main():
     parser.add_argument(
         "--train_ratio", type=float, default=0.8, help="训练集比例 0-1（默认: 0.8）"
     )
-    parser.add_argument("--epochs", type=int, default=20, help="训练轮数（默认: 20）")
+    parser.add_argument("--epochs", type=int, default=50, help="训练轮数（默认: 50）")
 
     args = parser.parse_args()
 
