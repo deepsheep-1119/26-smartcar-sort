@@ -6,10 +6,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import tensorflow as tf
 
 from config.classes import SMARTCAR_CLASSES
-from models.cnn_tf import SmartCarCNN
+from models.cnn_tf import create_smartcar_cnn
 
 
-def get_datasets(batch_size=32, img_size=96):
+def get_datasets(batch_size=8, img_size=96):
     train_ds = tf.keras.utils.image_dataset_from_directory(
         "data/smartcar/train",
         image_size=(img_size, img_size),
@@ -26,30 +26,34 @@ def get_datasets(batch_size=32, img_size=96):
         label_mode="categorical",
     )
 
-    train_ds = train_ds.map(lambda x, y: (tf.cast(x, tf.float32) / 255.0, y))
-    test_ds = test_ds.map(lambda x, y: (tf.cast(x, tf.float32) / 255.0, y))
+    train_ds = train_ds.map(
+        lambda x, y: ((tf.cast(x, tf.float32) / 127.5) - 1.0, tf.argmax(y, axis=1))
+    )
+    test_ds = test_ds.map(
+        lambda x, y: ((tf.cast(x, tf.float32) / 127.5) - 1.0, tf.argmax(y, axis=1))
+    )
 
     return train_ds, test_ds, idx_to_class
 
 
-def train(epochs=20):
+def train(epochs=100):
     train_ds, test_ds, idx_to_class = get_datasets()
 
-    model = SmartCarCNN(num_classes=len(SMARTCAR_CLASSES))
+    model = create_smartcar_cnn(num_classes=len(SMARTCAR_CLASSES))
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
-        loss=tf.keras.losses.CategoricalCrossentropy(),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0005),
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=["accuracy"],
     )
 
     print(f"Classes: {idx_to_class}")
     print(f"Train batches: {len(train_ds)}, Test batches: {len(test_ds)}")
 
-    model.fit(
+    history = model.fit(
         train_ds,
         epochs=epochs,
         validation_data=test_ds,
-        verbose=1,
+        verbose=2,
     )
 
     model.save("smartcar_model_tf.h5")

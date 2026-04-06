@@ -14,7 +14,8 @@ from config.classes import SMARTCAR_CLASSES
 def predict_image(model, img_path, idx_to_class):
     img = Image.open(str(img_path)).convert("RGB")
     img = img.resize((96, 96))
-    img_array = np.array(img, dtype=np.float32) / 255.0
+    img_array = np.array(img, dtype=np.float32)
+    img_array = (img_array / 127.5) - 1.0
     img_array = np.expand_dims(img_array, axis=0)
 
     output = model.predict(img_array, verbose=0)[0]
@@ -29,11 +30,9 @@ def predict_image(model, img_path, idx_to_class):
 
 
 def main():
-    from models.cnn_tf import SmartCarCNN
+    from models.cnn_tf import create_smartcar_cnn
 
-    model = SmartCarCNN(num_classes=len(SMARTCAR_CLASSES))
-    dummy_input = tf.zeros((1, 96, 96, 3))
-    model(dummy_input, training=False)
+    model = create_smartcar_cnn(num_classes=len(SMARTCAR_CLASSES))
     model.load_weights("smartcar_model_tf.weights.h5")
 
     with open("idx_to_class_tf.json", "r") as f:

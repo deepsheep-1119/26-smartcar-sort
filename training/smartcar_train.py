@@ -48,18 +48,20 @@ def get_dataLoaders(batch_size=32, img_size=96):
     return train_loader, test_loader, IDX_TO_CLASS
 
 
-def train(epochs=20):
+def train(epochs=50):
     train_loader, test_loader, idx_to_class = get_dataLoaders()
 
     device = get_device()
     model = SmartCarCNN(num_classes=len(SMARTCAR_CLASSES)).to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     print(f"Using device: {device}")
     print(f"Classes: {idx_to_class}")
     print(f"Train batches: {len(train_loader)}, Test batches: {len(test_loader)}")
 
+    best_acc = 0
     for epoch in range(epochs):
         model.train()
         total_loss = 0
@@ -72,6 +74,8 @@ def train(epochs=20):
             optimizer.step()
             total_loss += loss.item()
 
+        scheduler.step()
+
         model.eval()
         correct = 0
         with torch.no_grad():
@@ -82,16 +86,18 @@ def train(epochs=20):
                 correct += pred.eq(target).sum().item()
 
         accuracy = 100.0 * correct / len(test_loader.dataset)
+        if accuracy > best_acc:
+            best_acc = accuracy
         print(
-            f"Epoch {epoch + 1}/{epochs} - Loss: {total_loss / len(train_loader):.4f} - Acc: {accuracy:.2f}%",
-            end='\r'
+            f"Epoch {epoch + 1}/{epochs} - Loss: {total_loss / len(train_loader):.4f} - Acc: {accuracy:.2f}% (Best: {best_acc:.2f}%)",
+            end="\r",
         )
 
     torch.save(
         {"model": model.state_dict(), "idx_to_class": idx_to_class},
         "smartcar_model.pth",
     )
-    print("Model saved to smartcar_model.pth")
+    print("\nModel saved to smartcar_model.pth")
 
 
 if __name__ == "__main__":
