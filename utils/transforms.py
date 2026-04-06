@@ -26,6 +26,7 @@ def get_smartcar_transform(img_size=96, train=True):
                 transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
                 # 3. 随机水平翻转：50%概率翻转，帮助模型学习左右对称性
                 transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomVerticalFlip(p=0.5),
                 # 转换为 Tensor：归一化到 [0, 1] 范围
                 transforms.ToTensor(),
                 # 正则化：将像素值映射到 [-1, 1] 范围，有助于训练稳定性
