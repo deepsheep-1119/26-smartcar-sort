@@ -37,7 +37,7 @@ import numpy as np
 from pathlib import Path
 from typing import Optional, Tuple, List
 from dataclasses import dataclass, field
-
+from itertools import chain
 
 @dataclass
 class A4DetectionResult:
@@ -624,7 +624,8 @@ def main(
         category_out = out_path / category
         category_out.mkdir(exist_ok=True)
 
-        for img_path in category_path.glob("*.png"):
+        files=chain(category_path.glob("*.png"), category_path.glob("*.jpg"), category_path.glob("*.jpeg"))
+        for img_path in files:
             output_data = detect_a4_by_red(str(img_path))
             if output_data is not None:
                 result, warped = output_data
