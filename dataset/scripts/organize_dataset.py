@@ -9,17 +9,17 @@
     支持多类别分类任务，每个类别对应一个子文件夹。
 
 使用方法:
-    # 基本用法（默认 7:1:2 划分，即训练集70%，验证集10%，测试集20%）
+    # 基本用法（默认 7:2:1 划分，即训练集70%，验证集20%，测试集10%）
     python organize_dataset.py png_smartcar
 
     # 指定输出目录
     python organize_dataset.py png_smartcar --output mydata
 
     # 指定训练集比例
-    python organize_dataset.py png_smartcar --ratio 0.7 --val_ratio 0.1
+    python organize_dataset.py png_smartcar --ratio 0.7 --val_ratio 0.2
 
     # 组合使用
-    python organize_dataset.py png_smartcar -o mydata -r 0.7 -v 0.1
+    python organize_dataset.py png_smartcar -o mydata -r 0.7 -v 0.2
 
 输入要求:
     - 源文件夹中每个子文件夹视为一个类别
@@ -44,8 +44,8 @@
 参数说明:
     src_dir   : 源数据集路径（必填）
     --output  : 输出目录路径，默认为 "data"
-    --ratio   : 训练集比例，默认为 0.7（70%训练，10%验证，20%测试）
-    --val_ratio: 验证集比例，默认为 0.1
+    --ratio   : 训练集比例，默认为 0.7（70%训练，20%验证，10%测试）
+    --val_ratio: 验证集比例，默认为 0.2
     -h        : 显示帮助信息
 """
 
@@ -60,7 +60,7 @@ def organize_dataset(
     src_dir: str,
     output_dir: str = "data",
     train_ratio: float = 0.7,
-    val_ratio: float = 0.1,
+    val_ratio: float = 0.2,
     seed: int = 42,
     pattern: Optional[list[str]] = None,
 ) -> None:
@@ -71,7 +71,7 @@ def organize_dataset(
         src_dir: 源数据集目录路径，该目录下应包含多个子目录（每个子目录为一个类别）
         output_dir: 输出目录路径，默认为 "data"
         train_ratio: 训练集比例，默认为 0.7（70%）
-        val_ratio: 验证集比例，默认为 0.1（10%）
+        val_ratio: 验证集比例，默认为 0.2（20%），剩余10%为测试集
         seed: 随机种子，确保结果可复现，默认为 42
         pattern: 文件名匹配模式列表，如 ["warped_*.png", "*.jpg"]。如果为 None，则匹配所有图片格式
 
@@ -79,10 +79,10 @@ def organize_dataset(
         None
 
     Example:
-        >>> organize_dataset("png_smartcar", "data", 0.7, 0.1)
-        物资-右: 20 训练, 3 验证, 6 测试
-        交通工具-直行: 12 训练, 2 验证, 4 测试
-        武器-左: 13 训练, 2 验证, 4 测试
+        >>> organize_dataset("png_smartcar", "data", 0.7, 0.2)
+        物资-右: 20 训练, 6 验证, 3 测试
+        交通工具-直行: 12 训练, 4 验证, 2 测试
+        武器-左: 13 训练, 4 验证, 2 测试
 
         # 只处理 warped_*.png 和 *.jpg 文件
         >>> organize_dataset("out", "data/smartcar", pattern=["warped_*.png", "*.jpg"])
@@ -189,8 +189,8 @@ if __name__ == "__main__":
         "--val_ratio",
         "-v",
         type=float,
-        default=0.1,
-        help="验证集比例，范围 0-1（默认: 0.1）",
+        default=0.2,
+        help="验证集比例，范围 0-1（默认: 0.2）",
     )
 
     parser.add_argument(

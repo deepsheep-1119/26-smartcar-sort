@@ -48,14 +48,14 @@ def main():
     print(f"Using device: {device}")
     print(f"Classes: {idx_to_class}")
 
-    val_dir = Path("data/smartcar/val")
+    test_dir = Path("data/smartcar/test")
     categories = SMARTCAR_CLASSES
 
     correct = 0
     total = 0
 
     for cat in categories:
-        cat_dir = val_dir / cat
+        cat_dir = test_dir / cat
         if not cat_dir.exists():
             continue
         for img_path in cat_dir.glob("*.png"):

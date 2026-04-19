@@ -38,7 +38,7 @@ def main():
         --src_dir: 源数据集目录（默认: png_smartcar）
         --output_dir: 输出目录（默认: data/smartcar）
         --train_ratio: 训练集比例（默认: 0.7）
-        --val_ratio: 验证集比例（默认: 0.1）
+        --val_ratio: 验证集比例（默认: 0.2）
         --epochs: 训练轮数（默认: 20）
     """
     parser = argparse.ArgumentParser(
@@ -69,7 +69,7 @@ def main():
         "--train_ratio", type=float, default=0.7, help="训练集比例 0-1（默认: 0.7）"
     )
     parser.add_argument(
-        "--val_ratio", type=float, default=0.1, help="验证集比例 0-1（默认: 0.1）"
+        "--val_ratio", type=float, default=0.2, help="验证集比例 0-1（默认: 0.2）"
     )
     parser.add_argument("--epochs", type=int, default=50, help="训练轮数（默认: 50）")
     parser.add_argument(
