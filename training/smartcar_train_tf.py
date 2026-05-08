@@ -9,6 +9,27 @@ from config.classes import SMARTCAR_CLASSES
 from models.cnn_tf import create_smartcar_cnn
 
 
+data_augmentation = tf.keras.Sequential(
+    [
+        tf.keras.layers.RandomFlip("horizontal"),
+        tf.keras.layers.RandomRotation(0.05),
+        tf.keras.layers.RandomZoom(0.05),
+        tf.keras.layers.RandomContrast(0.1),
+    ]
+)
+
+
+def preprocess_train(x, y):
+    x = tf.cast(x, tf.float32) / 127.5 - 1.0
+    x = data_augmentation(x, training=True)
+    return x, tf.argmax(y, axis=1)
+
+
+def preprocess_eval(x, y):
+    x = tf.cast(x, tf.float32) / 127.5 - 1.0
+    return x, tf.argmax(y, axis=1)
+
+
 def get_datasets(batch_size=8, img_size=96):
     train_ds = tf.keras.utils.image_dataset_from_directory(
         "data/smartcar/train",
@@ -33,15 +54,13 @@ def get_datasets(batch_size=8, img_size=96):
         label_mode="categorical",
     )
 
-    train_ds = train_ds.map(
-        lambda x, y: ((tf.cast(x, tf.float32) / 127.5) - 1.0, tf.argmax(y, axis=1))
-    )
-    val_ds = val_ds.map(
-        lambda x, y: ((tf.cast(x, tf.float32) / 127.5) - 1.0, tf.argmax(y, axis=1))
-    )
-    test_ds = test_ds.map(
-        lambda x, y: ((tf.cast(x, tf.float32) / 127.5) - 1.0, tf.argmax(y, axis=1))
-    )
+    train_ds = train_ds.map(preprocess_train, num_parallel_calls=tf.data.AUTOTUNE)
+    val_ds = val_ds.map(preprocess_eval, num_parallel_calls=tf.data.AUTOTUNE)
+    test_ds = test_ds.map(preprocess_eval, num_parallel_calls=tf.data.AUTOTUNE)
+
+    train_ds = train_ds.cache().prefetch(tf.data.AUTOTUNE)
+    val_ds = val_ds.cache().prefetch(tf.data.AUTOTUNE)
+    test_ds = test_ds.cache().prefetch(tf.data.AUTOTUNE)
 
     return train_ds, val_ds, test_ds, idx_to_class
 
