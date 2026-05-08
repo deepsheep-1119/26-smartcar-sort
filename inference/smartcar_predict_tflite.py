@@ -50,26 +50,29 @@ def main():
 
     print(f"Classes: {idx_to_class}")
 
-    test_dir = Path("data/smartcar/test")
+    data_dir = Path("data/smartcar")
+    subdirs = ["train", "val", "test"]
     categories = SMARTCAR_CLASSES
 
     correct = 0
     total = 0
 
-    for cat in categories:
-        cat_dir = test_dir / cat
-        if not cat_dir.exists():
-            continue
-        for img_path in list(cat_dir.glob("*.png")) + list(cat_dir.glob("*.jpg")):
-            pred = predict_image(interpreter, img_path, idx_to_class)
-            true_label = cat
-            is_correct = pred == true_label
-            correct += is_correct
-            total += 1
-            status = "✅" if is_correct else "❌"
-            print(f"{status} {img_path.name}: predicted={pred}, actual={true_label}")
+    for subdir in subdirs:
+        sub_dir = data_dir / subdir
+        for cat in categories:
+            cat_dir = sub_dir / cat
+            if not cat_dir.exists():
+                continue
+            for img_path in list(cat_dir.glob("*.png")) + list(cat_dir.glob("*.jpg")):
+                pred = predict_image(interpreter, img_path, idx_to_class)
+                true_label = cat
+                is_correct = pred == true_label
+                correct += is_correct
+                total += 1
+                status = "✅" if is_correct else "❌"
+                print(f"{status} {img_path.name}: predicted={pred}, actual={true_label}")
 
-            print("-" * 40)
+                print("-" * 40)
 
     print(f"\nAccuracy: {correct}/{total} = {100 * correct / total:.2f}%")
 
