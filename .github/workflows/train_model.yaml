@@ -39,7 +39,7 @@ jobs:
           files: |  # 这里填写训练生成的模型文件名
             smartcar_model_tf.h5
             smartcar_model_tf.weights.h5
-            smartcar_model_tf.tflite
+            smartcar_model.tflite
             smartcar_model.pth
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
