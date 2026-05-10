@@ -1,0 +1,42 @@
+name: Train and Release Model
+
+on:
+  push:
+    branches:
+      - 'main'  # 触发条件：当代码推送到 main 分支时
+
+  workflow_dispatch:
+
+jobs:
+  build-and-train:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-python: false
+
+      - name: Install Dependencies
+        run: |
+          uv sync
+
+      - name: Training tensorflow model
+        run: uv run main.py --train_ratio 0.5 --val_ratio 0.25 --epochs 300 --framework tensorflow
+
+      - name: Training pytorch model
+        run: uv run main.py --train_ratio 0.5 --val_ratio 0.25 --epochs 300 --framework pytorch
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |  # 这里填写训练生成的模型文件名
+            smartcar_model_tf.h5
+            smartcar_model_tf.weights.h5
+            smartcar_model_tf.tflite
+            smartcar_model.pth
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
