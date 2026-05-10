@@ -102,6 +102,8 @@ def main():
         # 步骤1.1: A4纸检测与透视校正
         print("\n[1.1] A4纸检测与透视校正")
         print("-" * 30)
+        import subprocess
+        subprocess.run("rm -rf data", check=True,shell=True)
         from preprocessing.detect_red import main as detect_red_main
 
         detect_red_main(
