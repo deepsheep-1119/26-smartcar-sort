@@ -12,10 +12,10 @@ from models.cnn_tf import create_smartcar_cnn
 data_augmentation = tf.keras.Sequential(
     [
         tf.keras.layers.RandomFlip("horizontal"),
-        tf.keras.layers.RandomRotation(0.1),
-        tf.keras.layers.RandomZoom(0.1),
-        tf.keras.layers.RandomContrast(0.2),         # 对比度扰动更大
-        tf.keras.layers.RandomBrightness(0.2),
+        # tf.keras.layers.RandomRotation(0.1),
+        # tf.keras.layers.RandomZoom(0.1),
+        tf.keras.layers.RandomContrast(0.1),         # 对比度扰动更大
+        tf.keras.layers.RandomBrightness(0.1),
     ]
 )
 
